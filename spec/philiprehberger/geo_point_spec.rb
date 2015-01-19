@@ -14,7 +14,7 @@ RSpec.describe Philiprehberger::GeoPoint do
 
   describe '::VERSION' do
     it 'has a version number' do
-      expect(described_class::VERSION).to eq('0.1.0')
+      expect(described_class::VERSION).not_to be_nil
     end
   end
 end
