@@ -7,9 +7,10 @@ Gem::Specification.new do |spec|
   spec.version       = Philiprehberger::GeoPoint::VERSION
   spec.authors       = ['Philip Rehberger']
   spec.email         = ['me@philiprehberger.com']
-  spec.summary       = 'Geographic coordinate operations with Haversine distance and bounding box'
-  spec.description   = 'Geographic point calculations including Haversine distance, bearing, midpoint, ' \
-                       'destination point, bounding box, and DMS formatting. Zero dependencies.'
+  spec.summary       = 'Geographic coordinate operations with Haversine/Vincenty distance, geohash, rhumb lines, and bounding box'
+  spec.description   = 'Geographic point calculations including Haversine/Vincenty distance, bearing, midpoint, ' \
+                       'destination point, geohash encoding/decoding, cross-track distance, polygon containment, ' \
+                       'rhumb line navigation, bounding box, and DMS formatting. Zero dependencies.'
   spec.homepage      = 'https://github.com/philiprehberger/rb-geo-point'
   spec.license       = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'
