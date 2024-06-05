@@ -32,6 +32,17 @@ module Philiprehberger
         point.lat.between?(@min_lat, @max_lat) && point.lon.between?(@min_lon, @max_lon)
       end
 
+      # Approximate surface area of the bounding box in square kilometers
+      #
+      # @return [Float] area in km²
+      def area_km2
+        lat_dist = Point::EARTH_RADIUS_KM * ((@max_lat - @min_lat) * Math::PI / 180.0)
+        mid_lat = (@min_lat + @max_lat) / 2.0
+        lon_dist = Point::EARTH_RADIUS_KM * Math.cos(mid_lat * Math::PI / 180.0) *
+                   ((@max_lon - @min_lon) * Math::PI / 180.0)
+        lat_dist.abs * lon_dist.abs
+      end
+
       def to_a
         [@min_lat, @max_lat, @min_lon, @max_lon]
       end

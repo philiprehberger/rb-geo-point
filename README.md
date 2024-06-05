@@ -117,12 +117,39 @@ Philiprehberger::GeoPoint.inside_polygon?(inside, triangle)   # => true
 Philiprehberger::GeoPoint.inside_polygon?(outside, triangle)  # => false
 ```
 
+### Nearest Point
+
+```ruby
+origin = Philiprehberger::GeoPoint.point(40.7128, -74.0060)
+nearest = Philiprehberger::GeoPoint.nearest(origin, points)
+```
+
+### Points Within Radius
+
+```ruby
+nearby = Philiprehberger::GeoPoint.within_radius(origin, points, 50)
+```
+
+### Clustering
+
+```ruby
+clusters = Philiprehberger::GeoPoint.cluster(points, radius_km: 10)
+clusters.each { |group| puts "Cluster of #{group.length} points" }
+```
+
 ### Bounding Box
 
 ```ruby
 box = Philiprehberger::GeoPoint::BoundingBox.around(nyc, 50)
 box.contains?(nyc)     # => true
 box.contains?(london)  # => false
+```
+
+### Bounding Box Area
+
+```ruby
+box = Philiprehberger::GeoPoint::BoundingBox.around(point, 50)
+box.area_km2  # => 10000.0 (approximate km²)
 ```
 
 ### DMS Formatting
@@ -142,6 +169,9 @@ nyc.to_h    # => {lat: 40.7128, lon: -74.0060}
 | `.point(lat, lon)` | Create a new Point instance |
 | `.from_geohash(hash)` | Decode a geohash string to a Point at the center of the cell |
 | `.inside_polygon?(point, vertices)` | Check if a point is inside a polygon using ray-casting |
+| `.nearest(origin, points)` | Find closest point from array |
+| `.within_radius(origin, points, radius_km)` | Filter points by distance |
+| `.cluster(points, radius_km:)` | Group nearby points into clusters |
 
 ### `GeoPoint::Point`
 
@@ -167,6 +197,7 @@ nyc.to_h    # => {lat: 40.7128, lon: -74.0060}
 | `.around(point, radius, unit: :km)` | Create bounding box around a point |
 | `#contains?(point)` | Check if point is within the box |
 | `#to_a` | Return [min_lat, max_lat, min_lon, max_lon] array |
+| `#area_km2` | Approximate surface area in km² |
 | `#to_h` | Return hash with all bounds |
 
 ## Development

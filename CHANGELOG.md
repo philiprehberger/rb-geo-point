@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-01
+
+### Added
+- `GeoPoint.nearest(origin, points)` for finding the closest point
+- `GeoPoint.within_radius(origin, points, radius_km)` for filtering by distance
+- `GeoPoint.cluster(points, radius_km:)` for distance-based point clustering
+- `BoundingBox#area_km2` for approximate bounding box surface area
+
 ## [0.2.1] - 2026-03-31
 
 ### Changed
