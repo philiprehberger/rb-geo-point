@@ -3,7 +3,8 @@
 module Philiprehberger
   module GeoPoint
     # Represents a geographic coordinate with latitude and longitude.
-    # Provides Haversine distance, bearing, midpoint, and destination calculations.
+    # Provides Haversine/Vincenty distance, bearing, midpoint, destination,
+    # geohash, cross-track distance, polygon containment, and rhumb line calculations.
     class Point
       EARTH_RADIUS_KM = 6371.0
       UNIT_MULTIPLIERS = {
@@ -12,6 +13,13 @@ module Philiprehberger
         m: 1000.0,
         nm: 0.539957
       }.freeze
+
+      # WGS84 ellipsoid parameters
+      WGS84_A = 6_378_137.0
+      WGS84_F = 1.0 / 298.257223563
+      WGS84_B = WGS84_A * (1 - WGS84_F)
+
+      GEOHASH_BASE32 = '0123456789bcdefghjkmnpqrstuvwxyz'
 
       attr_reader :lat, :lon
 
@@ -26,19 +34,17 @@ module Philiprehberger
         @lon = lon
       end
 
-      def distance_to(other, unit: :km)
+      def distance_to(other, unit: :km, method: :haversine)
         validate_unit!(unit)
 
-        lat1 = deg_to_rad(@lat)
-        lat2 = deg_to_rad(other.lat)
-        dlat = deg_to_rad(other.lat - @lat)
-        dlon = deg_to_rad(other.lon - @lon)
-
-        a = (Math.sin(dlat / 2)**2) +
-            (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dlon / 2)**2))
-        c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-        km_to_unit(EARTH_RADIUS_KM * c, unit)
+        case method
+        when :haversine
+          haversine_distance(other, unit)
+        when :vincenty
+          vincenty_distance(other, unit)
+        else
+          raise ArgumentError, "Unknown method :#{method}. Valid methods: haversine, vincenty"
+        end
       end
 
       def bearing_to(other)
@@ -91,6 +97,97 @@ module Philiprehberger
         self.class.new(rad_to_deg(lat2), normalize_lon(rad_to_deg(lon2)))
       end
 
+      def to_geohash(precision: 12)
+        raise ArgumentError, "Precision must be between 1 and 12, got #{precision}" unless precision.between?(1, 12)
+
+        lat_range = [-90.0, 90.0]
+        lon_range = [-180.0, 180.0]
+        is_lon = true
+        bit = 0
+        ch = 0
+        hash = +''
+
+        (precision * 5).times do
+          if is_lon
+            mid = (lon_range[0] + lon_range[1]) / 2.0
+            if @lon >= mid
+              ch |= (1 << (4 - bit))
+              lon_range[0] = mid
+            else
+              lon_range[1] = mid
+            end
+          else
+            mid = (lat_range[0] + lat_range[1]) / 2.0
+            if @lat >= mid
+              ch |= (1 << (4 - bit))
+              lat_range[0] = mid
+            else
+              lat_range[1] = mid
+            end
+          end
+
+          is_lon = !is_lon
+          bit += 1
+
+          next unless bit == 5
+
+          hash << GEOHASH_BASE32[ch]
+          bit = 0
+          ch = 0
+        end
+
+        hash
+      end
+
+      def cross_track_distance(path_start, path_end, unit: :km)
+        validate_unit!(unit)
+
+        d_start_to_self = path_start.distance_to(self, unit: :km) / EARTH_RADIUS_KM
+        bearing_start_to_self = deg_to_rad(path_start.bearing_to(self))
+        bearing_start_to_end = deg_to_rad(path_start.bearing_to(path_end))
+
+        cross_track_rad = Math.asin(
+          Math.sin(d_start_to_self) * Math.sin(bearing_start_to_self - bearing_start_to_end)
+        )
+
+        km_to_unit(cross_track_rad * EARTH_RADIUS_KM, unit)
+      end
+
+      def rhumb_distance_to(other, unit: :km)
+        validate_unit!(unit)
+
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        dlat = lat2 - lat1
+        dlon = deg_to_rad(other.lon - @lon)
+
+        d_psi = Math.log(Math.tan((Math::PI / 4) + (lat2 / 2.0)) / Math.tan((Math::PI / 4) + (lat1 / 2.0)))
+
+        q = if d_psi.abs > 1e-12
+              dlat / d_psi
+            else
+              Math.cos(lat1)
+            end
+
+        dlon -= (2 * Math::PI) * (dlon <=> 0) if dlon.abs > Math::PI
+
+        dist = Math.sqrt((dlat**2) + ((q**2) * (dlon**2))) * EARTH_RADIUS_KM
+
+        km_to_unit(dist, unit)
+      end
+
+      def rhumb_bearing_to(other)
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        dlon = deg_to_rad(other.lon - @lon)
+
+        d_psi = Math.log(Math.tan((Math::PI / 4) + (lat2 / 2.0)) / Math.tan((Math::PI / 4) + (lat1 / 2.0)))
+
+        dlon -= (2 * Math::PI) * (dlon <=> 0) if dlon.abs > Math::PI
+
+        (rad_to_deg(Math.atan2(dlon, d_psi)) + 360) % 360
+      end
+
       def to_dms
         "#{format_dms(@lat, 'N', 'S')} #{format_dms(@lon, 'E', 'W')}"
       end
@@ -124,6 +221,120 @@ module Philiprehberger
       end
 
       private
+
+      def haversine_distance(other, unit)
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        dlat = deg_to_rad(other.lat - @lat)
+        dlon = deg_to_rad(other.lon - @lon)
+
+        a = (Math.sin(dlat / 2)**2) +
+            (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dlon / 2)**2))
+        c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+        km_to_unit(EARTH_RADIUS_KM * c, unit)
+      end
+
+      def vincenty_distance(other, unit) # rubocop:disable Metrics/AbcSize
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        lon1 = deg_to_rad(@lon)
+        lon2 = deg_to_rad(other.lon)
+
+        u1 = Math.atan((1 - WGS84_F) * Math.tan(lat1))
+        u2 = Math.atan((1 - WGS84_F) * Math.tan(lat2))
+        l = lon2 - lon1
+
+        sin_u1 = Math.sin(u1)
+        cos_u1 = Math.cos(u1)
+        sin_u2 = Math.sin(u2)
+        cos_u2 = Math.cos(u2)
+
+        lambda_val = l
+        iterations = 0
+
+        loop do
+          sin_lambda = Math.sin(lambda_val)
+          cos_lambda = Math.cos(lambda_val)
+
+          sin_sigma = Math.sqrt(
+            ((cos_u2 * sin_lambda)**2) +
+            (((cos_u1 * sin_u2) - (sin_u1 * cos_u2 * cos_lambda))**2)
+          )
+
+          return 0.0 if sin_sigma.zero?
+
+          cos_sigma = (sin_u1 * sin_u2) + (cos_u1 * cos_u2 * cos_lambda)
+          sigma = Math.atan2(sin_sigma, cos_sigma)
+
+          sin_alpha = (cos_u1 * cos_u2 * sin_lambda) / sin_sigma
+          cos_sq_alpha = 1 - (sin_alpha**2)
+
+          cos_2sigma_m = if cos_sq_alpha.zero?
+                           0.0
+                         else
+                           cos_sigma - ((2 * sin_u1 * sin_u2) / cos_sq_alpha)
+                         end
+
+          c = (WGS84_F / 16.0) * cos_sq_alpha * (4 + (WGS84_F * (4 - (3 * cos_sq_alpha))))
+
+          lambda_prev = lambda_val
+          lambda_val = l + ((1 - c) * WGS84_F * sin_alpha *
+            (sigma + (c * sin_sigma * (cos_2sigma_m + (c * cos_sigma * (-1 + (2 * (cos_2sigma_m**2))))))))
+
+          iterations += 1
+          break if (lambda_val - lambda_prev).abs < 1e-12 || iterations >= 200
+        end
+
+        (((WGS84_A**2)
+          (WGS84_B**2))
+         (WGS84_B**2))
+
+        ((Math.sin(Math.atan2(
+                     Math.sqrt(((cos_u2 * Math.sin(lambda_val))**2) +
+                       (((cos_u1 * sin_u2) - (sin_u1 * cos_u2 * Math.cos(lambda_val)))**2)),
+                     (sin_u1 * sin_u2) + (cos_u1 * cos_u2 * Math.cos(lambda_val))
+                   ))**2)
+         (Math.sin(Math.asin((cos_u1 * cos_u2 * Math.sin(lambda_val)) /
+                           Math.sqrt(((cos_u2 * Math.sin(lambda_val))**2) +
+                             (((cos_u1 * sin_u2) - (sin_u1 * cos_u2 * Math.cos(lambda_val)))**2))))**2))
+
+        # Recalculate cleanly for final result
+        sin_lambda = Math.sin(lambda_val)
+        cos_lambda = Math.cos(lambda_val)
+
+        sin_sigma = Math.sqrt(
+          ((cos_u2 * sin_lambda)**2) +
+          (((cos_u1 * sin_u2) - (sin_u1 * cos_u2 * cos_lambda))**2)
+        )
+        cos_sigma = (sin_u1 * sin_u2) + (cos_u1 * cos_u2 * cos_lambda)
+        sigma = Math.atan2(sin_sigma, cos_sigma)
+
+        sin_alpha = (cos_u1 * cos_u2 * sin_lambda) / sin_sigma
+        cos_sq_alpha = 1 - (sin_alpha**2)
+
+        cos_2sigma_m = if cos_sq_alpha.zero?
+                         0.0
+                       else
+                         cos_sigma - ((2 * sin_u1 * sin_u2) / cos_sq_alpha)
+                       end
+
+        u_sq = (cos_sq_alpha * ((WGS84_A**2) - (WGS84_B**2))) / (WGS84_B**2)
+        a_coeff = 1 + ((u_sq / 16_384.0) * (4096 + (u_sq * (-768 + (u_sq * (320 - (175 * u_sq)))))))
+        b_coeff = (u_sq / 1024.0) * (256 + (u_sq * (-128 + (u_sq * (74 - (47 * u_sq))))))
+
+        delta_sigma = b_coeff * sin_sigma * (
+          cos_2sigma_m + ((b_coeff / 4.0) * (
+            (cos_sigma * (-1 + (2 * (cos_2sigma_m**2)))) -
+            ((b_coeff / 6.0) * cos_2sigma_m * (-3 + (4 * (sin_sigma**2))) * (-3 + (4 * (cos_2sigma_m**2))))
+          ))
+        )
+
+        distance_m = WGS84_B * a_coeff * (sigma - delta_sigma)
+        distance_km = distance_m / 1000.0
+
+        km_to_unit(distance_km, unit)
+      end
 
       def deg_to_rad(deg)
         deg * Math::PI / 180.0
