@@ -9,8 +9,8 @@ Gem::Specification.new do |spec|
   spec.email = ['me@philiprehberger.com']
   spec.summary = 'Geographic coordinate operations with Haversine/Vincenty distance, geohash, rhumb lines, and bounding box'
   spec.description = 'Geographic point calculations including Haversine/Vincenty distance, bearing, midpoint, ' \
-                       'destination point, geohash encoding/decoding, cross-track distance, polygon containment, ' \
-                       'rhumb line navigation, bounding box, and DMS formatting. Zero dependencies.'
+                     'destination point, geohash encoding/decoding, cross-track distance, polygon containment, ' \
+                     'rhumb line navigation, bounding box, and DMS formatting. Zero dependencies.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-geo_point'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'
