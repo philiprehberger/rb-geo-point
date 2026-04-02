@@ -113,6 +113,70 @@ RSpec.describe Philiprehberger::GeoPoint do
       expect { described_class.inside_polygon?(point, two_points) }.to raise_error(ArgumentError, /at least 3/)
     end
   end
+
+  describe '.nearest' do
+    it 'finds the closest point' do
+      origin = described_class.point(0, 0)
+      points = [
+        described_class.point(10, 10),
+        described_class.point(1, 1),
+        described_class.point(5, 5)
+      ]
+      result = described_class.nearest(origin, points)
+      expect(result.lat).to eq(1)
+      expect(result.lon).to eq(1)
+    end
+
+    it 'returns nil for empty array' do
+      origin = described_class.point(0, 0)
+      expect(described_class.nearest(origin, [])).to be_nil
+    end
+  end
+
+  describe '.within_radius' do
+    it 'filters points within radius' do
+      origin = described_class.point(0, 0)
+      near = described_class.point(0.5, 0.5)
+      far = described_class.point(50, 50)
+      result = described_class.within_radius(origin, [near, far], 200)
+      expect(result).to include(near)
+      expect(result).not_to include(far)
+    end
+
+    it 'returns empty for no matches' do
+      origin = described_class.point(0, 0)
+      far = described_class.point(80, 80)
+      expect(described_class.within_radius(origin, [far], 10)).to be_empty
+    end
+  end
+
+  describe '.cluster' do
+    it 'groups nearby points' do
+      points = [
+        described_class.point(0, 0),
+        described_class.point(0.01, 0.01),
+        described_class.point(50, 50),
+        described_class.point(50.01, 50.01)
+      ]
+      clusters = described_class.cluster(points, radius_km: 100)
+      expect(clusters.length).to eq(2)
+    end
+
+    it 'puts all nearby points in one cluster' do
+      points = [
+        described_class.point(0, 0),
+        described_class.point(0.001, 0.001),
+        described_class.point(0.002, 0.002)
+      ]
+      clusters = described_class.cluster(points, radius_km: 100)
+      expect(clusters.length).to eq(1)
+      expect(clusters[0].length).to eq(3)
+    end
+
+    it 'returns empty for empty input' do
+      expect(described_class.cluster([], radius_km: 10)).to be_empty
+    end
+  end
 end
 
 RSpec.describe Philiprehberger::GeoPoint::Point do
@@ -621,6 +685,20 @@ RSpec.describe Philiprehberger::GeoPoint::BoundingBox do
     it 'returns a hash with all bounds' do
       box = described_class.new(40, 41, -75, -73)
       expect(box.to_h).to eq({ min_lat: 40, max_lat: 41, min_lon: -75, max_lon: -73 })
+    end
+  end
+
+  describe '#area_km2' do
+    it 'calculates approximate area' do
+      box = described_class.new(40, 41, -75, -74)
+      area = box.area_km2
+      # ~1 degree lat x 1 degree lon near 40.5N ≈ 111km x 85km ≈ 9435 km²
+      expect(area).to be_within(1000).of(9435)
+    end
+
+    it 'returns zero for zero-area box' do
+      box = described_class.new(40, 40, -75, -75)
+      expect(box.area_km2).to eq(0.0)
     end
   end
 

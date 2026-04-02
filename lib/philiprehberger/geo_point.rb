@@ -70,5 +70,54 @@ module Philiprehberger
 
       inside
     end
+
+    # Find the nearest point from an array
+    #
+    # @param origin [Point] the reference point
+    # @param points [Array<Point>] candidate points
+    # @return [Point, nil] the closest point
+    def self.nearest(origin, points)
+      return nil if points.empty?
+
+      points.min_by { |p| origin.distance_to(p) }
+    end
+
+    # Filter points within a given radius
+    #
+    # @param origin [Point] the reference point
+    # @param points [Array<Point>] candidate points
+    # @param radius_km [Float] maximum distance in kilometers
+    # @return [Array<Point>] points within the radius
+    def self.within_radius(origin, points, radius_km)
+      points.select { |p| origin.distance_to(p, unit: :km) <= radius_km }
+    end
+
+    # Group nearby points into clusters using simple distance-based clustering
+    #
+    # @param points [Array<Point>] points to cluster
+    # @param radius_km [Float] maximum distance between cluster members
+    # @return [Array<Array<Point>>] array of point clusters
+    def self.cluster(points, radius_km:)
+      remaining = points.dup
+      clusters = []
+
+      until remaining.empty?
+        seed = remaining.shift
+        group = [seed]
+
+        remaining.reject! do |p|
+          if seed.distance_to(p, unit: :km) <= radius_km
+            group << p
+            true
+          else
+            false
+          end
+        end
+
+        clusters << group
+      end
+
+      clusters
+    end
   end
 end
