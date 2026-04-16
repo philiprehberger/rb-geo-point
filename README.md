@@ -73,6 +73,15 @@ dest.lat  # => ~51.5
 dest.lon  # => ~-0.1
 ```
 
+### Destination Point (keyword form, meters)
+
+```ruby
+# Distance in meters, bearing in degrees (0 = north, clockwise)
+dest = nyc.destination(distance: 5_570_000, bearing: 51.2)
+dest.lat  # => ~51.5
+dest.lon  # => ~-0.1
+```
+
 ### Geohash
 
 ```ruby
@@ -182,6 +191,7 @@ nyc.to_h    # => {lat: 40.7128, lon: -74.0060}
 | `#bearing_to(other)` | Initial bearing in degrees (0-360) |
 | `#midpoint(other)` | Geographic midpoint between two points |
 | `#destination(bearing, distance, unit: :km)` | Point at given bearing and distance |
+| `#destination(distance:, bearing:)` | Forward geodesic: destination from distance (meters) and bearing (degrees) |
 | `#to_geohash(precision: 12)` | Encode point as a geohash string (precision 1-12) |
 | `#cross_track_distance(path_start, path_end, unit: :km)` | Perpendicular distance to great circle path |
 | `#rhumb_distance_to(other, unit: :km)` | Rhumb line (constant-bearing) distance |

@@ -379,6 +379,81 @@ RSpec.describe Philiprehberger::GeoPoint::Point do
     end
   end
 
+  describe '#destination(distance:, bearing:) keyword form' do
+    it 'returns the same point when travelling 0 meters' do
+      dest = origin.destination(distance: 0, bearing: 0)
+      expect(dest.lat).to be_within(1e-9).of(0)
+      expect(dest.lon).to be_within(1e-9).of(0)
+    end
+
+    it 'travels N meters north (bearing 0) with lat ~ N/111320 and lng unchanged' do
+      meters = 100_000
+      dest = origin.destination(distance: meters, bearing: 0)
+      expect(dest.lat).to be_within(5e-3).of(meters / 111_320.0)
+      expect(dest.lon).to be_within(1e-3).of(0)
+    end
+
+    it 'travels east along the equator (bearing 90) by ~111_320 m ≈ 1 degree lon' do
+      dest = origin.destination(distance: 111_320, bearing: 90)
+      expect(dest.lat).to be_within(1e-6).of(0)
+      expect(dest.lon).to be_within(5e-3).of(1.0)
+    end
+
+    it 'travels 10_000 km at bearing 45 from (0, 0) to a known-good fixture' do
+      # Spherical forward with R = 6_371_000 m:
+      #   ad = 1e7 / 6_371_000 ≈ 1.569612 rad (just shy of π/2)
+      #   φ₂ ≈ 45.0°, λ₂ ≈ 89.904°
+      dest = origin.destination(distance: 10_000_000, bearing: 45)
+      expect(dest.lat).to be_within(1e-2).of(45.0)
+      expect(dest.lon).to be_within(1e-2).of(89.904)
+    end
+
+    it 'round-trips: distance(start, destination(d, b)) ≈ d within 0.1%' do
+      start = described_class.new(37.7749, -122.4194) # SF
+      distance_m = 2_500_000
+      bearing = 73.4
+      dest = start.destination(distance: distance_m, bearing: bearing)
+      round_trip = start.distance_to(dest, unit: :m)
+      expect(round_trip).to be_within(distance_m * 0.001).of(distance_m)
+    end
+
+    it 'wraps across the antimeridian when travelling east past 180°' do
+      start = described_class.new(0, 179)
+      dest = start.destination(distance: 500_000, bearing: 90)
+      expect(dest.lon).to be < 0
+      expect(dest.lon).to be_within(1e-2).of(-176.503)
+    end
+
+    it 'normalizes bearing >= 360 to the equivalent direction' do
+      a = origin.destination(distance: 100_000, bearing: 45)
+      b = origin.destination(distance: 100_000, bearing: 405)
+      expect(b.lat).to be_within(1e-9).of(a.lat)
+      expect(b.lon).to be_within(1e-9).of(a.lon)
+    end
+
+    it 'accepts negative bearings by normalizing into [0, 360)' do
+      a = origin.destination(distance: 100_000, bearing: 270)
+      b = origin.destination(distance: 100_000, bearing: -90)
+      expect(b.lat).to be_within(1e-9).of(a.lat)
+      expect(b.lon).to be_within(1e-9).of(a.lon)
+    end
+
+    it 'raises ArgumentError for negative distance' do
+      expect { origin.destination(distance: -1, bearing: 0) }
+        .to raise_error(ArgumentError, /non-negative/)
+    end
+
+    it 'raises ArgumentError for non-numeric distance' do
+      expect { origin.destination(distance: 'far', bearing: 0) }
+        .to raise_error(ArgumentError, /distance must be Numeric/)
+    end
+
+    it 'raises ArgumentError for non-numeric bearing' do
+      expect { origin.destination(distance: 100, bearing: 'north') }
+        .to raise_error(ArgumentError, /bearing must be Numeric/)
+    end
+  end
+
   describe '#to_geohash' do
     it 'encodes NYC to a geohash' do
       hash = nyc.to_geohash(precision: 9)
