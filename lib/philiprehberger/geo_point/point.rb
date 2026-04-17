@@ -77,11 +77,20 @@ module Philiprehberger
         self.class.new(rad_to_deg(mid_lat), rad_to_deg(mid_lon))
       end
 
-      def destination(bearing, distance, unit: :km)
+      def destination(*args, distance: nil, bearing: nil, unit: :km)
+        # Keyword-only form: destination(distance: meters, bearing: degrees).
+        # When both kwargs are provided (and no positional args), distance is in meters.
+        if args.empty? && !distance.nil? && !bearing.nil?
+          return destination_meters_kw(distance, bearing)
+        end
+
+        raise ArgumentError, 'wrong number of arguments (given 0, expected 2)' if args.length < 2
+
+        bearing_arg, distance_arg = args
         validate_unit!(unit)
 
-        d = unit_to_km(distance, unit) / EARTH_RADIUS_KM
-        brng = deg_to_rad(bearing)
+        d = unit_to_km(distance_arg, unit) / EARTH_RADIUS_KM
+        brng = deg_to_rad(bearing_arg)
         lat1 = deg_to_rad(@lat)
         lon1 = deg_to_rad(@lon)
 
@@ -221,6 +230,31 @@ module Philiprehberger
       end
 
       private
+
+      def destination_meters_kw(distance, bearing)
+        raise ArgumentError, 'distance must be Numeric' unless distance.is_a?(Numeric)
+        raise ArgumentError, 'bearing must be Numeric' unless bearing.is_a?(Numeric)
+        raise ArgumentError, "distance must be non-negative, got #{distance}" if distance.negative?
+
+        bearing_norm = bearing.to_f % 360.0
+        earth_radius_m = EARTH_RADIUS_KM * 1000.0
+
+        ad = distance.to_f / earth_radius_m
+        brng = deg_to_rad(bearing_norm)
+        lat1 = deg_to_rad(@lat)
+        lon1 = deg_to_rad(@lon)
+
+        lat2 = Math.asin(
+          (Math.sin(lat1) * Math.cos(ad)) +
+          (Math.cos(lat1) * Math.sin(ad) * Math.cos(brng))
+        )
+        lon2 = lon1 + Math.atan2(
+          Math.sin(brng) * Math.sin(ad) * Math.cos(lat1),
+          Math.cos(ad) - (Math.sin(lat1) * Math.sin(lat2))
+        )
+
+        self.class.new(rad_to_deg(lat2), normalize_lon(rad_to_deg(lon2)))
+      end
 
       def haversine_distance(other, unit)
         lat1 = deg_to_rad(@lat)
