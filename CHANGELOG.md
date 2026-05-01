@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-01
+
+### Added
+- `Point.from_dms(lat, lon)` — parse degrees-minutes-seconds strings into a `Point`. Accepts canonical `°'"` symbols, space-separated form, decimal seconds, and plain decimal-degree strings. Honors N/S/E/W hemisphere suffixes. Completes the round-trip with `Point#to_dms`.
+
 ## [0.4.0] - 2026-04-16
 
 ### Added

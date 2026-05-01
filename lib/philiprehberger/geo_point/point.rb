@@ -201,6 +201,47 @@ module Philiprehberger
         "#{format_dms(@lat, 'N', 'S')} #{format_dms(@lon, 'E', 'W')}"
       end
 
+      # Parse degrees-minutes-seconds strings into a Point.
+      #
+      # Accepted forms (case-insensitive):
+      #   - `"40°45'30\"N"`, `"40 45 30 N"` (with hemisphere suffix N/S/E/W)
+      #   - `"40°45'30.5\"N"` (decimal seconds)
+      #   - `"40.7583"` / `"-40.7583"` (plain decimal-degree, returned as-is)
+      #
+      # @param lat [String] latitude string
+      # @param lon [String] longitude string
+      # @return [Point]
+      # @raise [ArgumentError] on malformed input or out-of-range values
+      def self.from_dms(lat, lon)
+        new(parse_dms(lat, hemisphere: %w[N S]), parse_dms(lon, hemisphere: %w[E W]))
+      end
+
+      # @api private
+      def self.parse_dms(input, hemisphere:)
+        raise ArgumentError, 'DMS input cannot be nil or empty' if input.nil? || input.to_s.strip.empty?
+
+        str = input.to_s.strip
+        if str.match?(/\A-?\d+(?:\.\d+)?\z/)
+          return Float(str)
+        end
+
+        match = str.match(
+          /\A
+            (?<deg>\d+(?:\.\d+)?)
+            \s*[°\s]?\s*
+            (?:(?<min>\d+(?:\.\d+)?)\s*['′\s]?\s*)?
+            (?:(?<sec>\d+(?:\.\d+)?)\s*["″\s]?\s*)?
+            (?<hem>[#{hemisphere.join}#{hemisphere.join.downcase}])?
+          \z/x
+        )
+        raise ArgumentError, "Invalid DMS string: #{input.inspect}" unless match
+
+        decimal = match[:deg].to_f + (match[:min].to_f / 60.0) + (match[:sec].to_f / 3600.0)
+        decimal = -decimal if match[:hem] && match[:hem].upcase == hemisphere[1]
+        decimal
+      end
+      private_class_method :parse_dms
+
       def to_a
         [@lat, @lon]
       end

@@ -704,6 +704,45 @@ RSpec.describe Philiprehberger::GeoPoint::Point do
       expect(nyc.to_s).to eq('(40.7128, -74.006)')
     end
   end
+
+  describe '.from_dms' do
+    it 'parses canonical degree-minute-second symbols' do
+      point = described_class.from_dms("40°45'30\"N", "73°59'15\"W")
+      expect(point.lat).to be_within(0.001).of(40.7583)
+      expect(point.lon).to be_within(0.001).of(-73.9875)
+    end
+
+    it 'parses space-separated format' do
+      point = described_class.from_dms('40 45 30 N', '73 59 15 W')
+      expect(point.lat).to be_within(0.001).of(40.7583)
+      expect(point.lon).to be_within(0.001).of(-73.9875)
+    end
+
+    it 'accepts plain decimal strings' do
+      point = described_class.from_dms('40.7128', '-74.0060')
+      expect(point.lat).to eq(40.7128)
+      expect(point.lon).to eq(-74.006)
+    end
+
+    it 'honors S/W hemisphere by negating' do
+      point = described_class.from_dms("33°52'4\"S", "151°12'26\"E")
+      expect(point.lat).to be < 0
+      expect(point.lon).to be > 0
+    end
+
+    it 'parses decimal seconds' do
+      point = described_class.from_dms("40°45'30.5\"N", '0 0 0 E')
+      expect(point.lat).to be_within(0.0001).of(40.7584722)
+    end
+
+    it 'raises on malformed input' do
+      expect { described_class.from_dms('garbage', '0') }.to raise_error(ArgumentError)
+    end
+
+    it 'raises on out-of-range latitude' do
+      expect { described_class.from_dms('91 0 0 N', '0 0 0 E') }.to raise_error(ArgumentError)
+    end
+  end
 end
 
 RSpec.describe Philiprehberger::GeoPoint::BoundingBox do

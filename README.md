@@ -169,6 +169,18 @@ nyc.to_a    # => [40.7128, -74.0060]
 nyc.to_h    # => {lat: 40.7128, lon: -74.0060}
 ```
 
+### Parsing DMS Strings
+
+```ruby
+# Canonical degree-minute-second symbols
+Philiprehberger::GeoPoint::Point.from_dms("40°45'30\"N", "73°59'15\"W")
+# => #<Point lat=40.758... lon=-73.987...>
+
+# Space-separated, plain decimal-degree, decimal seconds — all accepted
+Philiprehberger::GeoPoint::Point.from_dms("40 45 30 N", "73 59 15 W")
+Philiprehberger::GeoPoint::Point.from_dms("40.7128", "-74.0060")
+```
+
 ## API
 
 ### `GeoPoint`
@@ -187,6 +199,7 @@ nyc.to_h    # => {lat: 40.7128, lon: -74.0060}
 | Method | Description |
 |--------|-------------|
 | `.new(lat, lon)` | Create point with coordinate validation (-90..90, -180..180) |
+| `.from_dms(lat, lon)` | Parse DMS strings (`"40°45'30\"N"`, `"40 45 30 N"`, decimal-degree, etc.) into a Point |
 | `#distance_to(other, unit: :km, method: :haversine)` | Distance via Haversine or Vincenty (:km, :mi, :m, :nm) |
 | `#bearing_to(other)` | Initial bearing in degrees (0-360) |
 | `#midpoint(other)` | Geographic midpoint between two points |
