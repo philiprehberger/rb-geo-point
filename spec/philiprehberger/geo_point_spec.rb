@@ -353,6 +353,46 @@ RSpec.describe Philiprehberger::GeoPoint::Point do
     end
   end
 
+  describe '#interpolate' do
+    it 'returns a Point equal to self when fraction is 0.0' do
+      result = nyc.interpolate(london, 0.0)
+      expect(result).to be_a(described_class)
+      expect(result.lat).to be_within(1e-6).of(nyc.lat)
+      expect(result.lon).to be_within(1e-6).of(nyc.lon)
+    end
+
+    it 'returns a Point equal to other when fraction is 1.0' do
+      result = nyc.interpolate(london, 1.0)
+      expect(result).to be_a(described_class)
+      expect(result.lat).to be_within(1e-6).of(london.lat)
+      expect(result.lon).to be_within(1e-6).of(london.lon)
+    end
+
+    it 'fraction 0.5 produces a point close to the great-circle midpoint' do
+      mid = nyc.midpoint(london)
+      result = nyc.interpolate(london, 0.5)
+      expect(result.lat).to be_within(0.0001).of(mid.lat)
+      expect(result.lon).to be_within(0.0001).of(mid.lon)
+    end
+
+    it 'fraction 0.25 produces a point closer to self than to other' do
+      result = nyc.interpolate(london, 0.25)
+      d_to_self = result.distance_to(nyc)
+      d_to_other = result.distance_to(london)
+      expect(d_to_self).to be < d_to_other
+    end
+
+    it 'returns self-equivalent Point when both points are equal' do
+      result = nyc.interpolate(nyc, 0.5)
+      expect(result.lat).to be_within(1e-6).of(nyc.lat)
+      expect(result.lon).to be_within(1e-6).of(nyc.lon)
+    end
+
+    it 'raises ArgumentError on non-numeric fraction' do
+      expect { nyc.interpolate(london, 'half') }.to raise_error(ArgumentError, /Numeric/)
+    end
+  end
+
   describe '#destination' do
     it 'calculates destination point' do
       dest = origin.destination(90, 111.32)

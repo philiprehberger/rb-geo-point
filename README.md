@@ -82,6 +82,17 @@ dest.lat  # => ~51.5
 dest.lon  # => ~-0.1
 ```
 
+### Great-Circle Interpolation
+
+```ruby
+nyc = Philiprehberger::GeoPoint.point(40.7128, -74.0060)
+london = Philiprehberger::GeoPoint.point(51.5074, -0.1278)
+
+nyc.interpolate(london, 0.0)   # => nyc
+nyc.interpolate(london, 0.5)   # => midpoint along the great circle
+nyc.interpolate(london, 1.0)   # => london
+```
+
 ### Geohash
 
 ```ruby
@@ -203,6 +214,7 @@ Philiprehberger::GeoPoint::Point.from_dms("40.7128", "-74.0060")
 | `#distance_to(other, unit: :km, method: :haversine)` | Distance via Haversine or Vincenty (:km, :mi, :m, :nm) |
 | `#bearing_to(other)` | Initial bearing in degrees (0-360) |
 | `#midpoint(other)` | Geographic midpoint between two points |
+| `#interpolate(other, fraction)` | Point at the given fraction along the great-circle path (0.0 → self, 1.0 → other) |
 | `#destination(bearing, distance, unit: :km)` | Point at given bearing and distance |
 | `#destination(distance:, bearing:)` | Forward geodesic: destination from distance (meters) and bearing (degrees) |
 | `#to_geohash(precision: 12)` | Encode point as a geohash string (precision 1-12) |

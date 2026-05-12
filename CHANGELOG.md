@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-12
+
+### Added
+- `Point#interpolate(other, fraction)` returns the Point at the given fraction along the great-circle path between two points (slerp-style spherical interpolation)
+
 ## [0.5.0] - 2026-05-01
 
 ### Added

@@ -77,6 +77,45 @@ module Philiprehberger
         self.class.new(rad_to_deg(mid_lat), rad_to_deg(mid_lon))
       end
 
+      # Compute the Point at the given fraction along the great-circle path
+      # between `self` and `other` using spherical linear interpolation (slerp).
+      #
+      # @param other [Point] the endpoint of the great-circle path
+      # @param fraction [Numeric] interpolation fraction in 0.0..1.0
+      #   (0.0 returns `self`, 1.0 returns `other`)
+      # @return [Point]
+      # @raise [ArgumentError] if `fraction` is not Numeric
+      def interpolate(other, fraction)
+        raise ArgumentError, 'fraction must be Numeric' unless fraction.is_a?(Numeric)
+
+        f = fraction.to_f
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        lon1 = deg_to_rad(@lon)
+        lon2 = deg_to_rad(other.lon)
+
+        cos_delta = (Math.sin(lat1) * Math.sin(lat2)) +
+                    (Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1))
+        cos_delta = 1.0 if cos_delta > 1.0
+        cos_delta = -1.0 if cos_delta < -1.0
+        delta = Math.acos(cos_delta)
+
+        sin_delta = Math.sin(delta)
+        return self.class.new(@lat, @lon) if sin_delta.abs < 1e-12
+
+        a = Math.sin((1 - f) * delta) / sin_delta
+        b = Math.sin(f * delta) / sin_delta
+
+        x = (a * Math.cos(lat1) * Math.cos(lon1)) + (b * Math.cos(lat2) * Math.cos(lon2))
+        y = (a * Math.cos(lat1) * Math.sin(lon1)) + (b * Math.cos(lat2) * Math.sin(lon2))
+        z = (a * Math.sin(lat1)) + (b * Math.sin(lat2))
+
+        lat_i = Math.atan2(z, Math.sqrt((x**2) + (y**2)))
+        lon_i = Math.atan2(y, x)
+
+        self.class.new(rad_to_deg(lat_i), normalize_lon(rad_to_deg(lon_i)))
+      end
+
       def destination(*args, distance: nil, bearing: nil, unit: :km)
         # Keyword-only form: destination(distance: meters, bearing: degrees).
         # When both kwargs are provided (and no positional args), distance is in meters.
