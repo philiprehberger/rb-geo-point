@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-14
+
+### Added
+- `Point#equirectangular_distance_to(other, unit:)` — fast approximate distance using equirectangular projection. ~0.5% accurate for distances under 100 km, significantly faster than Haversine. Suited for proximity sorting/clustering on dense datasets.
+
 ## [0.6.0] - 2026-05-12
 
 ### Added

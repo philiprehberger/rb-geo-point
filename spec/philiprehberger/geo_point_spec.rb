@@ -265,6 +265,38 @@ RSpec.describe Philiprehberger::GeoPoint::Point do
     end
   end
 
+  describe '#equirectangular_distance_to' do
+    let(:vienna) { described_class.new(48.2082, 16.3738) }
+    let(:salzburg) { described_class.new(47.8095, 13.0550) }
+
+    it 'returns a finite Float for valid input' do
+      d = vienna.equirectangular_distance_to(salzburg)
+      expect(d).to be_a(Float)
+      expect(d).to be_finite
+    end
+
+    it 'returns 0.0 for identical points' do
+      expect(vienna.equirectangular_distance_to(vienna)).to be_within(1e-9).of(0.0)
+    end
+
+    it 'is within 0.5% of Haversine for short distances' do
+      approx = vienna.equirectangular_distance_to(salzburg)
+      exact = vienna.distance_to(salzburg, method: :haversine)
+      ratio = (approx - exact).abs / exact
+      expect(ratio).to be < 0.005
+    end
+
+    it 'respects the unit option' do
+      in_km = vienna.equirectangular_distance_to(salzburg, unit: :km)
+      in_m = vienna.equirectangular_distance_to(salzburg, unit: :m)
+      expect(in_m).to be_within(1e-6).of(in_km * 1000.0)
+    end
+
+    it 'raises when the argument is not a Point' do
+      expect { vienna.equirectangular_distance_to('nope') }.to raise_error(ArgumentError, /must be a Point/)
+    end
+  end
+
   describe '#distance_to with vincenty' do
     it 'calculates NYC to London distance with vincenty (~5585 km)' do
       distance = nyc.distance_to(london, method: :vincenty)

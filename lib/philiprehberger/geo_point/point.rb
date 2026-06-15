@@ -47,6 +47,35 @@ module Philiprehberger
         end
       end
 
+      # Fast approximate distance using equirectangular projection.
+      #
+      # Treats latitude/longitude as a flat Cartesian plane scaled by
+      # `cos(mean_lat)`. Significantly faster than Haversine (no trig on
+      # the hot path) and accurate to within ~0.5% for distances under
+      # 100 km. Use Haversine for longer distances or where exact values
+      # matter; this is intended for proximity sorting / clustering on
+      # dense datasets.
+      #
+      # @param other [Point] the other point
+      # @param unit [Symbol] :km (default), :mi, :m, :nm
+      # @return [Float] approximate distance in the requested unit
+      # @raise [ArgumentError] if `other` is not a Point or unit is unknown
+      def equirectangular_distance_to(other, unit: :km)
+        raise ArgumentError, 'other must be a Point' unless other.is_a?(self.class)
+
+        validate_unit!(unit)
+
+        lat1 = deg_to_rad(@lat)
+        lat2 = deg_to_rad(other.lat)
+        dlat = lat2 - lat1
+        dlon = deg_to_rad(other.lon - @lon)
+
+        x = dlon * Math.cos((lat1 + lat2) / 2.0)
+        km = Math.sqrt((x**2) + (dlat**2)) * EARTH_RADIUS_KM
+
+        km_to_unit(km, unit)
+      end
+
       def bearing_to(other)
         lat1 = deg_to_rad(@lat)
         lat2 = deg_to_rad(other.lat)

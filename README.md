@@ -4,6 +4,8 @@
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-geo_point.svg)](https://rubygems.org/gems/philiprehberger-geo_point)
 [![Last updated](https://img.shields.io/github/last-commit/philiprehberger/rb-geo-point)](https://github.com/philiprehberger/rb-geo-point/commits/main)
 
+![philiprehberger-geo_point](https://raw.githubusercontent.com/philiprehberger/rb-geo-point/main/package-card.webp)
+
 Geographic coordinate operations with Haversine/Vincenty distance, geohash, rhumb lines, and bounding box
 
 ## Requirements
@@ -192,6 +194,21 @@ Philiprehberger::GeoPoint::Point.from_dms("40 45 30 N", "73 59 15 W")
 Philiprehberger::GeoPoint::Point.from_dms("40.7128", "-74.0060")
 ```
 
+### Fast Approximate Distance
+
+For proximity sorting / clustering on dense datasets where exact distance is wasted work and relative ordering is all that matters:
+
+```ruby
+require "philiprehberger/geo_point"
+
+vienna = Philiprehberger::GeoPoint::Point.new(48.2082, 16.3738)
+salzburg = Philiprehberger::GeoPoint::Point.new(47.8095, 13.0550)
+
+vienna.equirectangular_distance_to(salzburg)  # => ~252.0 (km, approximate)
+```
+
+Accurate to within ~0.5% for distances under 100 km. Use `#distance_to` for exact values.
+
 ## API
 
 ### `GeoPoint`
@@ -212,6 +229,7 @@ Philiprehberger::GeoPoint::Point.from_dms("40.7128", "-74.0060")
 | `.new(lat, lon)` | Create point with coordinate validation (-90..90, -180..180) |
 | `.from_dms(lat, lon)` | Parse DMS strings (`"40°45'30\"N"`, `"40 45 30 N"`, decimal-degree, etc.) into a Point |
 | `#distance_to(other, unit: :km, method: :haversine)` | Distance via Haversine or Vincenty (:km, :mi, :m, :nm) |
+| `#equirectangular_distance_to(other, unit:)` | Fast approximate distance using equirectangular projection (~0.5% error under 100 km) |
 | `#bearing_to(other)` | Initial bearing in degrees (0-360) |
 | `#midpoint(other)` | Geographic midpoint between two points |
 | `#interpolate(other, fraction)` | Point at the given fraction along the great-circle path (0.0 → self, 1.0 → other) |
